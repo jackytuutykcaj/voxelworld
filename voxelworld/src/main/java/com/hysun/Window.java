@@ -1,6 +1,5 @@
 package com.hysun;
 
-import org.lwjgl.*;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.*;
 import org.lwjgl.system.*;
@@ -9,23 +8,38 @@ import java.nio.*;
 
 import static org.lwjgl.glfw.Callbacks.*;
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL33.*;
 import static org.lwjgl.system.MemoryStack.*;
 import static org.lwjgl.system.MemoryUtil.*;
 
 public class Window {
 
     private long window;
+    private int shaderProgram;
+    private int vaoID;
+    private int vboID;
+    Shader shader;
+    private int width;
+    private int height;
+
+    public Window(int width, int height){
+        this.width = width;
+        this.height = height;
+    }
 
     public void run(){
         System.out.println("Starting...");
         init();
         loop();
 
+        // cleanup
+        glDeleteVertexArrays(vaoID);
+        glDeleteBuffers(vboID);
+        glDeleteProgram(shaderProgram);
+
         // Free the window and destroy window
         glfwFreeCallbacks(window);
         glfwDestroyWindow(window);
-
         //terminate GLFW and free the error callback
         glfwTerminate();
         glfwSetErrorCallback(null).free();
@@ -44,12 +58,23 @@ public class Window {
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);//macOS
 
         //Create the window
-        window = glfwCreateWindow(800, 600, "Voxel World", NULL, NULL);
+        window = glfwCreateWindow(this.width, this.height, "Voxel World", NULL, NULL);
         if(window == NULL){
             throw new RuntimeException("Failed to create window");
         }
+
+        //Resize window callback
+        glfwSetFramebufferSizeCallback(window, (window, newWidth, newHeight) ->{
+            this.width = newWidth;
+            this.height = newHeight;
+            glViewport(0, 0, newWidth, newHeight);
+        });
 
         // Set esc key to close window
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) ->{
@@ -78,11 +103,46 @@ public class Window {
 
         // Make the window visible
         glfwShowWindow(window);
+
+        GL.createCapabilities();
+
+        shader = new Shader(Shader.readFile("vertex.glsl"), Shader.readFile("fragment.glsl"));
     }
 
     public void loop(){
         System.out.println("rendering...");
-        GL.createCapabilities();
+
+        float[] vertices = {
+            -0.5f, 0.5f, 0.0f,
+            0.5f, 0.5f, 0.0f,
+            -0.5f, -0.5f, 0.0f,
+
+            0.5f, 0.5f, 0.0f,
+            0.5f, -0.5f, 0.0f,
+            -0.5f, -0.5f, 0.0f
+        };
+
+        //create and bind vertex arrray object
+        vaoID = glGenVertexArrays();
+        glBindVertexArray(vaoID);
+
+        //create and bind vertex buffer object
+        vboID = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, vboID);
+
+        try(MemoryStack stack = stackPush()){
+            FloatBuffer vertexBuffer = stack.mallocFloat(vertices.length);
+            vertexBuffer.put(vertices).flip();
+            glBufferData(GL_ARRAY_BUFFER, vertexBuffer, GL_STATIC_DRAW);
+        }
+
+        //define how the shader should  read the vertex buffer object data
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+        glEnableVertexAttribArray(0);
+
+        //unbind the vertex buffer object and vertex array object
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
 
         //set the color
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -92,12 +152,27 @@ public class Window {
             //clear frame
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+            //tell opengl to use shader program
+            shader.bind();
+            
+            //bind the vertex array object
+            glBindVertexArray(vaoID);
+
+            //draw the vertices
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+
+            //unbind
+            glBindVertexArray(0);
+            glUseProgram(0);
+
             //swap the color buffers
             glfwSwapBuffers(window);
 
             //poll for window events
             glfwPollEvents();
         }
+
+        shader.cleanup();
     }
     
 }
