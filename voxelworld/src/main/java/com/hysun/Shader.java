@@ -40,6 +40,10 @@ public class Shader {
         glUseProgram(shaderProgram);
     }
 
+    public int getShaderProgram(){
+        return shaderProgram;
+    }
+
     public void cleanup(){
         glDeleteProgram(shaderProgram);
     }

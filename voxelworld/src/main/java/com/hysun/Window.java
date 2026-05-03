@@ -15,7 +15,6 @@ import static org.lwjgl.system.MemoryUtil.*;
 public class Window {
 
     private long window;
-    private int shaderProgram;
     private int vaoID;
     private int vboID;
     Shader shader;
@@ -35,7 +34,7 @@ public class Window {
         // cleanup
         glDeleteVertexArrays(vaoID);
         glDeleteBuffers(vboID);
-        glDeleteProgram(shaderProgram);
+        shader.cleanup();
 
         // Free the window and destroy window
         glfwFreeCallbacks(window);
@@ -71,8 +70,6 @@ public class Window {
 
         //Resize window callback
         glfwSetFramebufferSizeCallback(window, (window, newWidth, newHeight) ->{
-            this.width = newWidth;
-            this.height = newHeight;
             glViewport(0, 0, newWidth, newHeight);
         });
 
@@ -154,6 +151,20 @@ public class Window {
 
             //tell opengl to use shader program
             shader.bind();
+
+            //calculate and send aspect ratio
+            try (MemoryStack stack = stackPush()){
+                IntBuffer w = stack.mallocInt(1);
+                IntBuffer h = stack.mallocInt(1);
+                glfwGetWindowSize(window, w, h);
+
+                int width = w.get(0);
+                int height = h.get(0) > 0 ? h.get(0) : 1;
+
+                float aspectRatio = (float) width / height;
+                int aspectLocation = glGetUniformLocation(shader.getShaderProgram(), "u_aspectRatio");
+                glUniform1f(aspectLocation, aspectRatio);
+            }
             
             //bind the vertex array object
             glBindVertexArray(vaoID);
