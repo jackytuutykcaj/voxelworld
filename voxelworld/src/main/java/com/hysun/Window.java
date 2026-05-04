@@ -70,6 +70,12 @@ public class Window {
             throw new RuntimeException("Failed to create window");
         }
 
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+        glfwSetCursorPosCallback(window, (windowHandle, xpos, ypos) ->{
+            camera.handleMouse(windowHandle, xpos, ypos);
+        });
+
         //Resize window callback
         glfwSetFramebufferSizeCallback(window, (window, newWidth, newHeight) ->{
             glViewport(0, 0, newWidth, newHeight);
@@ -147,6 +153,8 @@ public class Window {
 
         // rendering loop
         while(!glfwWindowShouldClose(window)){
+            // Process WASD inputs
+            camera.processInput(window);
             //clear frame
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -154,32 +162,7 @@ public class Window {
             shader.bind();
 
             //projection matrix
-            try (MemoryStack stack = stackPush()){
-                IntBuffer w = stack.mallocInt(1);
-                IntBuffer h = stack.mallocInt(1);
-                glfwGetWindowSize(window, w, h);
-
-                int width = w.get(0);
-                int height = h.get(0) > 0 ? h.get(0) : 1;
-
-                float aspectRatio = (float) width / height;
-
-                Matrix4f projection = new Matrix4f().identity();
-
-                projection.setPerspective((float)Math.toRadians(45.0f), aspectRatio, 0.1f, 100.0f);
-                int projLocation = glGetUniformLocation(shader.getShaderProgram(), "u_projection");
-
-                FloatBuffer projBuffer = stack.mallocFloat(16);
-                projection.get(projBuffer);
-                glUniformMatrix4fv(projLocation, false, projBuffer);
-
-                //view matrix
-                Matrix4f view = camera.getViewMatrix();
-                int viewLocation = glGetUniformLocation(shader.getShaderProgram(), "u_view");
-                FloatBuffer viewBuffer = stack.mallocFloat(16);
-                view.get(viewBuffer);
-                glUniformMatrix4fv(viewLocation, false, viewBuffer);
-            }
+            camera.projectionMatrix(window, shader);
             
             //bind the vertex array object
             glBindVertexArray(vaoID);
