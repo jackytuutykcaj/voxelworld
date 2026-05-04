@@ -1,5 +1,6 @@
 package com.hysun;
 
+import org.joml.Matrix4f;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.*;
 import org.lwjgl.system.*;
@@ -20,6 +21,7 @@ public class Window {
     Shader shader;
     private int width;
     private int height;
+    Camera camera = new Camera();
 
     public Window(int width, int height){
         this.width = width;
@@ -110,13 +112,12 @@ public class Window {
         System.out.println("rendering...");
 
         float[] vertices = {
-            -0.5f, 0.5f, 0.0f,
-            0.5f, 0.5f, 0.0f,
-            -0.5f, -0.5f, 0.0f,
-
-            0.5f, 0.5f, 0.0f,
-            0.5f, -0.5f, 0.0f,
-            -0.5f, -0.5f, 0.0f
+            -0.5f, 0.5f, -3.0f,
+            0.5f, 0.5f, -3.0f,
+            -0.5f, -0.5f, -3.0f,
+            0.5f, 0.5f, -3.0f,
+            0.5f, -0.5f, -3.0f,
+            -0.5f, -0.5f, -3.0f
         };
 
         //create and bind vertex arrray object
@@ -152,7 +153,7 @@ public class Window {
             //tell opengl to use shader program
             shader.bind();
 
-            //calculate and send aspect ratio
+            //projection matrix
             try (MemoryStack stack = stackPush()){
                 IntBuffer w = stack.mallocInt(1);
                 IntBuffer h = stack.mallocInt(1);
@@ -162,8 +163,22 @@ public class Window {
                 int height = h.get(0) > 0 ? h.get(0) : 1;
 
                 float aspectRatio = (float) width / height;
-                int aspectLocation = glGetUniformLocation(shader.getShaderProgram(), "u_aspectRatio");
-                glUniform1f(aspectLocation, aspectRatio);
+
+                Matrix4f projection = new Matrix4f().identity();
+
+                projection.setPerspective((float)Math.toRadians(45.0f), aspectRatio, 0.1f, 100.0f);
+                int projLocation = glGetUniformLocation(shader.getShaderProgram(), "u_projection");
+
+                FloatBuffer projBuffer = stack.mallocFloat(16);
+                projection.get(projBuffer);
+                glUniformMatrix4fv(projLocation, false, projBuffer);
+
+                //view matrix
+                Matrix4f view = camera.getViewMatrix();
+                int viewLocation = glGetUniformLocation(shader.getShaderProgram(), "u_view");
+                FloatBuffer viewBuffer = stack.mallocFloat(16);
+                view.get(viewBuffer);
+                glUniformMatrix4fv(viewLocation, false, viewBuffer);
             }
             
             //bind the vertex array object
