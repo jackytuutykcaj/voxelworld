@@ -9,6 +9,29 @@ import java.nio.*;
 
 import static org.lwjgl.glfw.Callbacks.*;
 import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
+import static org.lwjgl.opengl.GL11.GL_FLOAT;
+import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
+import static org.lwjgl.opengl.GL11.GL_TRUE;
+import static org.lwjgl.opengl.GL11.glClear;
+import static org.lwjgl.opengl.GL11.glClearColor;
+import static org.lwjgl.opengl.GL11.glDrawArrays;
+import static org.lwjgl.opengl.GL11.glEnable;
+import static org.lwjgl.opengl.GL11.glViewport;
+import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
+import static org.lwjgl.opengl.GL15.glBindBuffer;
+import static org.lwjgl.opengl.GL15.glBufferData;
+import static org.lwjgl.opengl.GL15.glDeleteBuffers;
+import static org.lwjgl.opengl.GL15.glGenBuffers;
+import static org.lwjgl.opengl.GL20.glEnableVertexAttribArray;
+import static org.lwjgl.opengl.GL20.glUseProgram;
+import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
+import static org.lwjgl.opengl.GL30.glBindVertexArray;
+import static org.lwjgl.opengl.GL30.glDeleteVertexArrays;
+import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import static org.lwjgl.opengl.GL33.*;
 import static org.lwjgl.system.MemoryStack.*;
 import static org.lwjgl.system.MemoryUtil.*;
@@ -112,41 +135,65 @@ public class Window {
         GL.createCapabilities();
 
         shader = new Shader(Shader.readFile("vertex.glsl"), Shader.readFile("fragment.glsl"));
+
+        glEnable(GL_DEPTH_TEST);
     }
 
     public void loop(){
         System.out.println("rendering...");
 
         float[] vertices = {
-            -0.5f, 0.5f, -3.0f,
-            0.5f, 0.5f, -3.0f,
-            -0.5f, -0.5f, -3.0f,
-            0.5f, 0.5f, -3.0f,
-            0.5f, -0.5f, -3.0f,
-            -0.5f, -0.5f, -3.0f
+            // Positions          // Colors (R, G, B)
+            // Front face (Red)
+            -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 0.0f,
+             0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 0.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 0.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 0.0f,
+            -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 0.0f,
+
+            // Back face (Green)
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 0.0f,
+             0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 0.0f,
+             0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,
+             0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 0.0f,
+
+            // Left face (Blue)
+            -0.5f,  0.5f,  0.5f,  0.0f, 0.0f, 1.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f, 0.0f, 1.0f,
+
+            // Right face (Yellow)
+             0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f,
+             0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,
+             0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 0.0f,
+             0.5f, -0.5f, -0.5f,  1.0f, 1.0f, 0.0f,
+             0.5f, -0.5f,  0.5f,  1.0f, 1.0f, 0.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f,
+
+            // Bottom face (Cyan)
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 1.0f,
+             0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 1.0f,
+             0.5f, -0.5f,  0.5f,  0.0f, 1.0f, 1.0f,
+             0.5f, -0.5f,  0.5f,  0.0f, 1.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 1.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 1.0f,
+
+            // Top face (Magenta)
+            -0.5f,  0.5f, -0.5f,  1.0f, 0.0f, 1.0f,
+             0.5f,  0.5f, -0.5f,  1.0f, 0.0f, 1.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 1.0f,
+             0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 1.0f,
+            -0.5f,  0.5f, -0.5f,  1.0f, 0.0f, 1.0f
         };
 
-        //create and bind vertex arrray object
-        vaoID = glGenVertexArrays();
-        glBindVertexArray(vaoID);
-
-        //create and bind vertex buffer object
-        vboID = glGenBuffers();
-        glBindBuffer(GL_ARRAY_BUFFER, vboID);
-
-        try(MemoryStack stack = stackPush()){
-            FloatBuffer vertexBuffer = stack.mallocFloat(vertices.length);
-            vertexBuffer.put(vertices).flip();
-            glBufferData(GL_ARRAY_BUFFER, vertexBuffer, GL_STATIC_DRAW);
-        }
-
-        //define how the shader should  read the vertex buffer object data
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-        glEnableVertexAttribArray(0);
-
-        //unbind the vertex buffer object and vertex array object
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
+        Mesh mesh = new Mesh(vertices);
 
         //set the color
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -165,10 +212,10 @@ public class Window {
             camera.projectionMatrix(window, shader);
             
             //bind the vertex array object
-            glBindVertexArray(vaoID);
+            mesh.bind();
 
             //draw the vertices
-            glDrawArrays(GL_TRIANGLES, 0, 6);
+            mesh.render();
 
             //unbind
             glBindVertexArray(0);
